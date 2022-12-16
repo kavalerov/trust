@@ -2,7 +2,7 @@ import gradio as gr
 import numpy as np
 from transformers import pipeline
 
-pipe = pipeline("sentiment-analysis", ,model="siebert/sentiment-roberta-large-english")
+pipe = pipeline("sentiment-analysis", model="siebert/sentiment-roberta-large-english")
 
 def message_sentiment(text):
   return pipe(text)[0]
