@@ -54,4 +54,4 @@ with gr.Blocks() as demo:
     b_sentiment_button.click(analyse_batch_sentiment, inputs=b_sentiment_input, outputs=b_sentiment_output)
 #     image_button.click(flip_image, inputs=image_input, outputs=image_output)
 
-demo.launch(share=True)
+demo.launch()
