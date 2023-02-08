@@ -38,27 +38,32 @@ def process(history, num_people, we_dict):
     num_of_questions = history.count("?")
     bar_plot = px.bar(df, x=df.index, y="total")
 
-    return df, bar_plot, "", str(num_of_questions), ""
+    proportion = "{:2.{decimal}f}%".format(
+        (len(active_participants) / int(num_people) if num_people != "" else 0) * 100,
+        decimal=1,
+    )
+
+    return df, bar_plot, proportion, str(num_of_questions), ""
 
 
 with gr.Blocks() as demo:
     gr.Label("Chat history analysis")
     chat_history = gr.Textbox(
-        "Enter chat history here",
+        "",
         interactive=True,
         max_lines=500,
         lines=10,
         label="Chat history",
     )
     num_of_people = gr.Textbox(
-        "Enter number of people in the chat here",
+        "",
         interactive=True,
         max_lines=1,
         lines=1,
         label="Total number of people in the chat",
     )
     we_dictionary = gr.Textbox(
-        "Enter dictionary of 'we' words here",
+        "",
         interactive=True,
         max_lines=500,
         lines=10,
