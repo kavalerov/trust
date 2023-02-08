@@ -37,13 +37,21 @@ def process(history, num_people, we_dict):
     # print(formatted_dates)
     num_of_questions = history.count("?")
     bar_plot = px.bar(df, x=df.index, y="total")
+    stacked_bar_plot = px.bar(df, x=df.index, y=active_participants, barmode="stack")
 
     proportion = "{:2.{decimal}f}%".format(
         (len(active_participants) / int(num_people) if num_people != "" else 0) * 100,
         decimal=1,
     )
 
-    return df, bar_plot, proportion, str(num_of_questions), ""
+    return (
+        df,
+        bar_plot,
+        stacked_bar_plot,
+        proportion,
+        "",
+        str(num_of_questions),
+    )
 
 
 with gr.Blocks() as demo:
@@ -79,6 +87,7 @@ with gr.Blocks() as demo:
     # )
     output_interventions = gr.DataFrame(headers=["Date", "Number of interventions"])
     output_interventions_plot = gr.Plot()
+    output_interventions_plot_stacked = gr.Plot()
     output_proportion = gr.Textbox(
         "Proportion of 'we' words will be displayed here",
         max_lines=500,
@@ -103,6 +112,7 @@ with gr.Blocks() as demo:
         outputs=[
             output_interventions,
             output_interventions_plot,
+            output_interventions_plot_stacked,
             output_proportion,
             output_we_words,
             output_num_of_question_marks,
