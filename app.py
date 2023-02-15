@@ -6,6 +6,45 @@ import pandas as pd
 from plotly import express as px
 
 
+# function that takes in a string and returns a list of words
+def process_text(text):
+    # remove punctuation
+    text = re.sub(r"[^\w\s]", "", text)
+    # remove numbers
+    text = re.sub(r"\d+", "", text)
+    # remove whitespace
+    text = text.strip()
+    # convert to lowercase
+    text = text.lower()
+    # split into words
+    words = text.split(" ")
+    return words
+
+
+# Function to calculate the number of words in a string
+def count_words(text):
+    words = process_text(text)
+    return len(words)
+
+
+# Function creates a histogram of the words in a string
+def create_histogram(text):
+    words = process_text(text)
+    word_counts = {}
+    for word in words:
+        if word not in word_counts:
+            word_counts[word] = 1
+        else:
+            word_counts[word] += 1
+    return word_counts
+
+
+# Function that draws a histogram of the words in a string
+def draw_histogram(text):
+    word_counts = create_histogram(text)
+    return px.bar(x=list(word_counts.keys()), y=list(word_counts.values()))
+
+
 def process(history, num_people, we_dict):
     print(history)
     regex = r"^([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d),\s([0-1]?[0-9]|2?[0-3]):([0-5]\d) - ([a-zA-Z ]*):([^\n\r]*)"
@@ -39,6 +78,9 @@ def process(history, num_people, we_dict):
             if word in text:
                 words_df[word].loc[full_date] += 1
                 words_df["total"].loc[full_date] += 1
+
+    # sort the array
+    dates = sorted(dates.items(), key=lambda x: x[1])
 
     # formatted_dates = []
     # for key, value in dates.items():
@@ -129,4 +171,4 @@ with gr.Blocks() as demo:
     gr.Label("Output")
 
 
-demo.launch()
+demo.launch(server_name="0.0.0.0", server_port=8080)

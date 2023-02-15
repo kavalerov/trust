@@ -7,9 +7,6 @@ authors = ["Ivan Kavalerov <ivan@kavalerov.net>"]
 [tool.poetry.dependencies]
 python = "^3.8"
 gradio = "^3.14.0"
-transformers = "^4.25.1"
-sentence-transformers = "^2.2.2"
-notebook = "^6.5.2"
 numpy = "^1.23.5"
 scikit-learn = "^1.2.0"
 chart-studio = "^1.1.0"
