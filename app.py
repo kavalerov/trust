@@ -46,17 +46,22 @@ def draw_histogram(text):
 
 
 def process(history, num_people, we_dict):
-    print(history)
-    regex = r"^([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d),\s([0-1]?[0-9]|2?[0-3]):([0-5]\d) - ([a-zA-Z ()-]*):([^\n\r]*)"
+    regex = r"^([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d),\s([0-1]?[0-9]|2?[0-3]):([0-5]\d) - ([a-zA-Z ()-]*):((.|\n)+?(?=(\[|\Z)))"
     intervention_datetimes = re.findall(regex, history, re.MULTILINE)
+    format = 1
+    print("First match: " + str(len(intervention_datetimes)))
     if len(intervention_datetimes) == 0:
-        regex = 
+        regex = r"^\[([0-1]?[0-9]|2?[0-3]):([0-5]\d),\s([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d)\]\s([a-zA-Z ()-]*):((.|\n)+?(?=(\[|\Z)))"
+        intervention_datetimes = re.findall(regex, history, re.MULTILINE)
+        format = 2
+        print("Second match: " + str(len(intervention_datetimes)))
     dates = []
     active_participants = []
     analysis_words = we_dict.split("\n")
     df = pd.DataFrame(columns=["total"])
     analysis_words.append("total")
     print(analysis_words)
+    print(str(intervention_datetimes))
     words_df = pd.DataFrame(columns=analysis_words)
     for item in intervention_datetimes:
         text = item[8]
@@ -65,10 +70,21 @@ def process(history, num_people, we_dict):
             active_participants.append(participant_name)
             print(participant_name)
             df[participant_name] = [] if len(dates) == 0 else [0] * len(dates)
-        day = (
-            item[0] if len(item[0]) > 0 else (item[1] if len(item[1]) > 0 else item[2])
-        )
-        full_date = day + "/" + item[3] + "/" + item[4]
+        print("Item " + str(item))
+        if format == 1:
+            day = (
+                item[0]
+                if len(item[0]) > 0
+                else (item[1] if len(item[1]) > 0 else item[2])
+            )
+            full_date = day + "/" + item[3] + "/" + item[4]
+        else:
+            day = (
+                item[2]
+                if len(item[2]) > 0
+                else (item[3] if len(item[3]) > 0 else item[4])
+            )
+            full_date = day + "/" + item[5] + "/" + item[6]
         if full_date not in dates:
             df.loc[full_date] = [0 for i in range(len(active_participants) + 1)]
             if len(analysis_words) > 0:
@@ -82,7 +98,7 @@ def process(history, num_people, we_dict):
                 words_df["total"].loc[full_date] += 1
 
     # sort the array
-    dates = sorted(dates.items(), key=lambda x: x[1])
+    dates = sorted(dates, key=lambda x: x[1])
 
     # formatted_dates = []
     # for key, value in dates.items():
