@@ -101,6 +101,11 @@ def process(history, num_people, we_dict):
         intervention_datetimes = re.findall(regex, history, re.MULTILINE)
         format = 2
         print("Second match: " + str(len(intervention_datetimes)))
+        if len(intervention_datetimes) == 0:
+            regex = r"\[(\d{2}\/\d{2}\/\d{4}), (\d{2}:\d{2}:\d{2})\] ([^:]+) ?: (.*?)(?=\n\[\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}:\d{2}\]|$)"
+            intervention_datetimes = re.findall(regex, history, re.DOTALL)
+            format = 3
+            print("Third match: " + str(len(intervention_datetimes)))
     dates = []
     active_participants = []
     analysis_words = we_dict.split("\n")
@@ -110,8 +115,12 @@ def process(history, num_people, we_dict):
     print(str(intervention_datetimes))
     words_df = pd.DataFrame(columns=analysis_words)
     for item in intervention_datetimes:
-        text = item[8]
-        participant_name = item[7]
+        if format == 1 or format == 2:
+            text = item[8]
+            participant_name = item[7]
+        else:
+            text = item[3]
+            participant_name = item[2]
         if participant_name not in active_participants:
             active_participants.append(participant_name)
             print(participant_name)
@@ -124,13 +133,15 @@ def process(history, num_people, we_dict):
                 else (item[1] if len(item[1]) > 0 else item[2])
             )
             full_date = day + "/" + item[3] + "/" + item[4]
-        else:
+        elif format == 2:
             day = (
                 item[2]
                 if len(item[2]) > 0
                 else (item[3] if len(item[3]) > 0 else item[4])
             )
             full_date = day + "/" + item[5] + "/" + item[6]
+        else:
+            full_date = item[0]
         if full_date not in dates:
             df.loc[full_date] = [0 for i in range(len(active_participants) + 1)]
             if len(analysis_words) > 0:
