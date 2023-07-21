@@ -1,9 +1,10 @@
 import os
 import re
+from dataclasses import dataclass
+from datetime import date, datetime
 from typing import List
 
 import gradio as gr
-import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from plotly import express as px
@@ -52,135 +53,166 @@ def save_dictionary(title: str, words: str) -> str:
     return dictionary.data[0]["words"]
 
 
-# function that takes in a string and returns a list of words
-def process_text(text):
-    # remove punctuation
-    text = re.sub(r"[^\w\s]", "", text)
-    # remove numbers
-    text = re.sub(r"\d+", "", text)
-    # remove whitespace
-    text = text.strip()
-    # convert to lowercase
-    text = text.lower()
-    # split into words
-    words = text.split(" ")
-    return words
+@dataclass
+class Message:
+    """
+    Message contains the following:
+    {
+        "day": "08",
+        "month": "07",
+        "year": "2020",
+        "time": "08:54",
+        "person": "Person A",
+        "content": "Hi Sarah (from Street to Scale)! We've added you to our Jarsquad WhatsApp for our new Street-To-Scale project..."
+    }
+    """
+
+    date: date
+    person: str
+    content: str
 
 
-# Function to calculate the number of words in a string
-def count_words(text):
-    words = process_text(text)
-    return len(words)
+def parse_messages(history: str) -> List[Message]:
+    regex = [
+        r"^([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d),\s([0-1]?[0-9]|2?[0-3]):([0-5]\d) - ([a-zA-Z ()-+0-9]*):((.|\n)+?(?=((^([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d),\s([0-1]?[0-9]|2?[0-3]):([0-5]\d))|\Z)))",  # noqa: E501
+        r"^\[([0-1]?[0-9]|2?[0-3]):([0-5]\d),\s([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d)\]\s([a-zA-Z ()-+0-9]*):((.|\n)+?(?=(\[|\Z)))",
+        r"\[(\d{2}\/\d{2}\/\d{4}), (\d{2}:\d{2}:\d{2})\] ([^:]+) ?: (.*?)(?=\n\[\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}:\d{2}\]|$)",
+    ]
 
+    format = None
+    messages: List[str] = []
+    for index, r in enumerate(regex):
+        print("Trying regex " + str(index))
+        messages = re.findall(r, history, re.MULTILINE)
+        print("Matched " + str(len(messages)))
+        if len(messages) > 0:
+            format = index
+            break
+    print(format)
+    if format is None:
+        raise Exception("No regex matched")
 
-# Function creates a histogram of the words in a string
-def create_histogram(text):
-    words = process_text(text)
-    word_counts = {}
-    for word in words:
-        if word not in word_counts:
-            word_counts[word] = 1
-        else:
-            word_counts[word] += 1
-    return word_counts
-
-
-# Function that draws a histogram of the words in a string
-def draw_histogram(text):
-    word_counts = create_histogram(text)
-    return px.bar(x=list(word_counts.keys()), y=list(word_counts.values()))
+    if format == 0:
+        return [
+            Message(
+                date=date(
+                    int(message[4]),
+                    int(message[3]),
+                    int(
+                        message[0]
+                        if len(message[0]) > 0
+                        else (message[1] if len(message[1]) > 0 else message[2])
+                    ),
+                ),
+                person=message[7],
+                content=message[8],
+            )
+            for message in messages
+        ]
+    elif format == 1:
+        return [
+            Message(
+                date=date(
+                    int(message[6]),
+                    int(message[5]),
+                    int(
+                        message[2]
+                        if len(message[2]) > 0
+                        else (message[3] if len(message[3]) > 0 else message[4])
+                    ),
+                ),
+                person=message[7],
+                content=message[8],
+            )
+            for message in messages
+        ]
+    elif format == 2:
+        return [
+            Message(
+                date=datetime.strptime(message[0], "%d/%m/%Y").date(),
+                person=message[2],
+                content=message[3],
+            )
+            for message in messages
+        ]
+    else:
+        raise Exception("No regex matched")
 
 
 def process(history, num_people, we_dict):
-    regex = r"^([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d),\s([0-1]?[0-9]|2?[0-3]):([0-5]\d) - ([a-zA-Z ()-+0-9]*):((.|\n)+?(?=((^([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d),\s([0-1]?[0-9]|2?[0-3]):([0-5]\d))|\Z)))"
-    intervention_datetimes = re.findall(regex, history, re.MULTILINE)
-    format = 1
-    print("First match: " + str(len(intervention_datetimes)))
-    if len(intervention_datetimes) == 0:
-        regex = r"^\[([0-1]?[0-9]|2?[0-3]):([0-5]\d),\s([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d)\]\s([a-zA-Z ()-+0-9]*):((.|\n)+?(?=(\[|\Z)))"
-        intervention_datetimes = re.findall(regex, history, re.MULTILINE)
-        format = 2
-        print("Second match: " + str(len(intervention_datetimes)))
-        if len(intervention_datetimes) == 0:
-            regex = r"\[(\d{2}\/\d{2}\/\d{4}), (\d{2}:\d{2}:\d{2})\] ([^:]+) ?: (.*?)(?=\n\[\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}:\d{2}\]|$)"
-            intervention_datetimes = re.findall(regex, history, re.DOTALL)
-            format = 3
-            print("Third match: " + str(len(intervention_datetimes)))
-    dates = []
-    active_participants = []
-    analysis_words = we_dict.split("\n")
-    df = pd.DataFrame(columns=["total"])
-    analysis_words.append("total")
-    print(analysis_words)
-    print(str(intervention_datetimes))
-    words_df = pd.DataFrame(columns=analysis_words)
-    for item in intervention_datetimes:
-        if format == 1 or format == 2:
-            text = item[8]
-            participant_name = item[7]
-        else:
-            text = item[3]
-            participant_name = item[2]
-        if participant_name not in active_participants:
-            active_participants.append(participant_name)
-            print(participant_name)
-            df[participant_name] = [] if len(dates) == 0 else [0] * len(dates)
-        print("Item " + str(item))
-        if format == 1:
-            day = (
-                item[0]
-                if len(item[0]) > 0
-                else (item[1] if len(item[1]) > 0 else item[2])
-            )
-            full_date = day + "/" + item[3] + "/" + item[4]
-        elif format == 2:
-            day = (
-                item[2]
-                if len(item[2]) > 0
-                else (item[3] if len(item[3]) > 0 else item[4])
-            )
-            full_date = day + "/" + item[5] + "/" + item[6]
-        else:
-            full_date = item[0]
-        if full_date not in dates:
-            df.loc[full_date] = [0 for i in range(len(active_participants) + 1)]
-            if len(analysis_words) > 0:
-                words_df.loc[full_date] = [0 for i in range(len(analysis_words))]
-            dates.append(full_date)
-        df[participant_name].loc[[full_date]] += 1
-        df["total"].loc[full_date] += 1
-        for word in analysis_words:
-            if word in text:
-                words_df[word].loc[full_date] += 1
-                words_df["total"].loc[full_date] += 1
+    messages = parse_messages(history)
+    print(messages)
+    messages = sorted(messages, key=lambda x: x.date)
+    print(messages)
+    start_date = messages[0].date
+    end_date = messages[-1].date
+    active_participants = list(set([message.person for message in messages]))
+    num_of_days = (end_date - start_date).days + 1
+    date_index = pd.date_range(start_date, end_date, periods=num_of_days)
+    date_index = date_index.date
+    print("Start date: " + str(start_date))
+    print("End date: " + str(end_date))
+    print(date_index)
 
-    # sort the array
-    dates = sorted(dates, key=lambda x: x[1])
+    # Calculate number of messages by person per day and total
+    num_of_messages_df = pd.DataFrame(
+        index=date_index, columns=active_participants, dtype=int
+    )
+    num_of_messages_df = num_of_messages_df.fillna(0)
+    for message in messages:
+        num_of_messages_df.loc[message.date][message.person] += 1
+    num_of_messages_df["total"] = num_of_messages_df.sum(axis=1)
+    print(num_of_messages_df)
 
-    # formatted_dates = []
-    # for key, value in dates.items():
-    #     print(key, value)
-    #     formatted_dates.append([key, value])
-    # print(formatted_dates)
+    # Generate bar plot of number of messages by person per day and total
+    num_of_messages_bar_plot = px.bar(
+        num_of_messages_df, x=num_of_messages_df.index, y="total"
+    )
+
+    # Generate stacked bar plot of number of messages by person per day
+    num_of_messages_stacked_bar_plot = px.bar(
+        num_of_messages_df,
+        x=num_of_messages_df.index,
+        y=active_participants,
+        barmode="stack",
+    )
+
+    # Calculate number of question marks in the history
     num_of_questions = history.count("?")
-    bar_plot = px.bar(df, x=df.index, y="total")
-    stacked_bar_plot = px.bar(df, x=df.index, y=active_participants, barmode="stack")
-    word_bar_plot = px.bar(df, x=words_df.index, y="total")
+
+    # Calculate proportion of active participants
     proportion = "{:2.{decimal}f}%".format(
         (len(active_participants) / int(num_people) if num_people != "" else 0) * 100,
         decimal=1,
     )
-    # df["Date"] = df.index
-    df.insert(0, "Date", df.index)
-    words_df.insert(0, "Date", words_df.index)
-    # words_df["Date"] = words_df.index
+
+    # Calculate number of words from the dictionary per day and total
+    analysis_words = we_dict.split("\n")
+    words_df = pd.DataFrame(index=date_index, columns=analysis_words, dtype=int)
+    words_df = words_df.fillna(0)
+    for message in messages:
+        for word in analysis_words:
+            count = message.content.count(word)
+            words_df.loc[message.date][word] += count
+
+    words_totals = words_df.sum(axis=0)
+
+    # Generate stacked bar plot of number of words from the dictionary per day and total
+    word_stacked_bar_plot = px.bar(
+        words_df, x=words_df.index, y=analysis_words, barmode="stack"
+    )
+
+    # df.insert(0, "Date", df.index)
+    # words_df.insert(0, "Date", words_df.index)
+
     return (
-        df,
-        bar_plot,
-        stacked_bar_plot,
+        num_of_messages_df,
+        num_of_messages_bar_plot,
+        num_of_messages_stacked_bar_plot,
         proportion,
         words_df,
-        word_bar_plot,
+        words_totals,
+        word_stacked_bar_plot,
         str(num_of_questions),
     )
 
@@ -239,6 +271,7 @@ with gr.Blocks() as demo:
             label="Proportion of active usage",
         )
         output_we_words = gr.DataFrame(headers=["Date", "Number of words usage"])
+        output_we_words_totals = gr.DataFrame(headers=["Word", "Total usage"])
         output_we_words_plot = gr.Plot()
         output_num_of_question_marks = gr.Textbox(
             "Question marks usage will be displayed here",
@@ -253,6 +286,7 @@ with gr.Blocks() as demo:
                 output_interventions_plot_stacked,
                 output_proportion,
                 output_we_words,
+                output_we_words_totals,
                 output_we_words_plot,
                 output_num_of_question_marks,
             ],
