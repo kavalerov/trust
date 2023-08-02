@@ -58,12 +58,13 @@ class Message:
     """
     Message contains the following:
     {
-        "day": "08",
-        "month": "07",
-        "year": "2020",
-        "time": "08:54",
-        "person": "Person A",
-        "content": "Hi Sarah (from Street to Scale)! We've added you to our Jarsquad WhatsApp for our new Street-To-Scale project..."
+    "day": "08",
+    "month": "07",
+    "year": "2020",
+    "time": "08:54",
+    "person": "Person A",
+    "content": "Hi Sarah (from Street to Scale)! We've added you to our Jarsquad WhatsApp for our new
+        Street-To-Scale project..."
     }
     """
 
@@ -75,24 +76,26 @@ class Message:
 def parse_messages(history: str) -> List[Message]:
     regex = [
         r"^([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d),\s([0-1]?[0-9]|2?[0-3]):([0-5]\d) - ([a-zA-Z ()-+0-9]*):((.|\n)+?(?=((^([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d),\s([0-1]?[0-9]|2?[0-3]):([0-5]\d))|\Z)))",  # noqa: E501
-        r"^\[([0-1]?[0-9]|2?[0-3]):([0-5]\d),\s([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d)\]\s([a-zA-Z ()-+0-9]*):((.|\n)+?(?=(\[|\Z)))",
-        r"\[(\d{2}\/\d{2}\/\d{4}), (\d{2}:\d{2}:\d{2})\] ([^:]+) ?: (.*?)(?=\n\[\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}:\d{2}\]|$)",
+        r"^\[([0-1]?[0-9]|2?[0-3]):([0-5]\d),\s([1-9]|([012][0-9])|(3[01]))\/([0]{0,1}[1-9]|1[012])\/(\d\d\d\d)\]\s(["
+        r"a-zA-Z ()-+0-9]*):((.|\n)+?(?=(\[|\Z)))",
+        r"\[(\d{2}\/\d{2}\/\d{4}), (\d{2}:\d{2}:\d{2})\] ([^:]+) ?: (.*?)(?=\n\[\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}:\d{"
+        r"2}\]|$)",
     ]
 
-    format = None
+    messages_format = None
     messages: List[str] = []
     for index, r in enumerate(regex):
         print("Trying regex " + str(index))
         messages = re.findall(r, history, re.MULTILINE)
         print("Matched " + str(len(messages)))
         if len(messages) > 0:
-            format = index
+            messages_format = index
             break
-    print(format)
-    if format is None:
+    print(messages_format)
+    if messages_format is None:
         raise Exception("No regex matched")
 
-    if format == 0:
+    if messages_format == 0:
         return [
             Message(
                 date=date(
@@ -109,7 +112,7 @@ def parse_messages(history: str) -> List[Message]:
             )
             for message in messages
         ]
-    elif format == 1:
+    elif messages_format == 1:
         return [
             Message(
                 date=date(
@@ -126,7 +129,7 @@ def parse_messages(history: str) -> List[Message]:
             )
             for message in messages
         ]
-    elif format == 2:
+    elif messages_format == 2:
         return [
             Message(
                 date=datetime.strptime(message[0], "%d/%m/%Y").date(),
@@ -177,6 +180,9 @@ def process(history, num_people, we_dict):
         barmode="stack",
     )
 
+    # Make index the first column
+    num_of_messages_df.insert(0, "Date", num_of_messages_df.index)
+
     # Calculate number of question marks in the history
     num_of_questions = history.count("?")
 
@@ -195,12 +201,24 @@ def process(history, num_people, we_dict):
             count = message.content.count(word)
             words_df.loc[message.date][word] += count
 
-    words_totals = words_df.sum(axis=0)
+    # now make index the first column
+    words_df.insert(0, "Date", words_df.index)
+
+    # now calculate totals for each word across all days, and save in new dataframe with words as index and totals as
+    # values
+    words_totals = pd.DataFrame(index=analysis_words, columns=["total"], dtype=int)
+    words_totals = words_totals.fillna(0)
+    for word in analysis_words:
+        words_totals.loc[word]["total"] = words_df[word].sum(axis=0)
+
+    # now make index the first column
+    words_totals.insert(0, "Word", words_totals.index)
+
 
     # Generate stacked bar plot of number of words from the dictionary per day and total
-    word_stacked_bar_plot = px.bar(
-        words_df, x=words_df.index, y=analysis_words, barmode="stack"
-    )
+    # word_stacked_bar_plot = px.bar(
+    #     words_df, x=words_df.index, y=analysis_words, barmode="stack"
+    # )
 
     # df.insert(0, "Date", df.index)
     # words_df.insert(0, "Date", words_df.index)
@@ -212,7 +230,7 @@ def process(history, num_people, we_dict):
         proportion,
         words_df,
         words_totals,
-        word_stacked_bar_plot,
+        # word_stacked_bar_plot,
         str(num_of_questions),
     )
 
@@ -238,14 +256,15 @@ with gr.Blocks() as demo:
             label="Total number of people in the chat",
         )
         dict_dropdown = gr.Dropdown(
-            dict_list, label="Dictionary of words to check for occurance"
+            dict_list, label="Dictionary of words to check for occurrence"
         )
         we_dictionary = gr.Textbox(
             "",
             interactive=False,
             max_lines=500,
             lines=10,
-            label="Full dictionary. Please go to the 'Dictionaries' tab to edit a dictionary, or 'Add Dictionaries' to add a new one.",
+            label="Full dictionary. Please go to the 'Dictionaries' tab to edit a dictionary, or 'Add Dictionaries' "
+                  "to add a new one.",
         )
         dict_reload.click(get_dictionaries_titles, inputs=[], outputs=[dict_dropdown])
 
@@ -287,7 +306,7 @@ with gr.Blocks() as demo:
                 output_proportion,
                 output_we_words,
                 output_we_words_totals,
-                output_we_words_plot,
+                # output_we_words_plot,
                 output_num_of_question_marks,
             ],
         )
