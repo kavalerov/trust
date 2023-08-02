@@ -193,7 +193,7 @@ def process(history, num_people, we_dict):
     )
 
     # Calculate number of words from the dictionary per day and total
-    analysis_words = we_dict.split("\n")
+    analysis_words = list(set(we_dict.split("\n")))
     words_df = pd.DataFrame(index=date_index, columns=analysis_words, dtype=int)
     words_df = words_df.fillna(0)
     for message in messages:
@@ -209,19 +209,14 @@ def process(history, num_people, we_dict):
     words_totals = pd.DataFrame(index=analysis_words, columns=["total"], dtype=int)
     words_totals = words_totals.fillna(0)
     for word in analysis_words:
-        words_totals.loc[word]["total"] = words_df[word].sum(axis=0)
+        words_totals.loc[word, "total"] = words_df[word].sum(axis=0)
 
     # now make index the first column
     words_totals.insert(0, "Word", words_totals.index)
 
 
     # Generate stacked bar plot of number of words from the dictionary per day and total
-    # word_stacked_bar_plot = px.bar(
-    #     words_df, x=words_df.index, y=analysis_words, barmode="stack"
-    # )
-
-    # df.insert(0, "Date", df.index)
-    # words_df.insert(0, "Date", words_df.index)
+    word_stacked_bar_plot = px.bar(words_df, x=words_df.index, y=analysis_words, barmode="stack")
 
     return (
         num_of_messages_df,
@@ -230,7 +225,7 @@ def process(history, num_people, we_dict):
         proportion,
         words_df,
         words_totals,
-        # word_stacked_bar_plot,
+        word_stacked_bar_plot,
         str(num_of_questions),
     )
 
@@ -306,7 +301,7 @@ with gr.Blocks() as demo:
                 output_proportion,
                 output_we_words,
                 output_we_words_totals,
-                # output_we_words_plot,
+                output_we_words_plot,
                 output_num_of_question_marks,
             ],
         )
