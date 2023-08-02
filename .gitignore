@@ -3,3 +3,4 @@ __pycache__/
 .idea/
 .vscode/
 __pycache__/*
+.DS_Store
