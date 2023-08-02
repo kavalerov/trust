@@ -3,6 +3,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import List
+import openai
 
 import gradio as gr
 import pandas as pd
@@ -15,6 +16,30 @@ load_dotenv()
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
+
+openai.api_key = os.environ.get("OPENAI_API_KEY")
+
+
+def get_conversation_summary(conversation: str) -> str:
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo-16k",
+        messages=[
+            {
+                "role": "system",
+                "content": "Break the following Whatsapp chat history into separate conversations. For each conversation specify its topic, main participants, and provide short, concise summary of the conversation. "
+            },
+            {
+                "role": "user",
+                "content": conversation
+            }
+        ],
+        temperature=0.48,
+        max_tokens=2133,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0
+    )
+    return response.choices[0].message.content
 
 
 def get_dictionaries_titles() -> List[str]:
@@ -304,6 +329,16 @@ with gr.Blocks() as demo:
                 output_we_words_plot,
                 output_num_of_question_marks,
             ],
+        )
+        conversation_summary_textbox = gr.Textbox(
+            "Conversation summary will be displayed here",
+            label="Conversations summary",
+        )
+        conversation_summary_btn = gr.Button(value="Get conversations summary")
+        conversation_summary_btn.click(
+            get_conversation_summary,
+            inputs=[chat_history],
+            outputs=[conversation_summary_textbox],
         )
     with gr.Tab("Dictionaries") as dictionaries_tab:
         gr.Label(
