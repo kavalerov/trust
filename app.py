@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import List
 import openai
+import spacy
 
 import gradio as gr
 import pandas as pd
@@ -18,6 +19,48 @@ key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
+
+# Load the spacy model
+nlp = spacy.load("en_core_web_sm")
+
+
+def calculate_word_occurrences(text: str, word_dict: List[str]) -> dict:
+    # Load the spacy model
+
+
+    # Create a dictionary for counting occurrences
+    occurrences = dict()
+
+    # Lowercase and lemmatize the dictionary, but leave emojis and phrases intact
+    word_dict = [
+        nlp(word.lower())[0].lemma_ if " " not in word and not re.match(
+            r"[\U00010000-\U0010ffff]", word
+        ) else word
+        for word in word_dict
+    ]
+
+    # Preprocessing the text: lowering the case, lemmatizing, splitting into words and phrases
+    doc = nlp(text.lower())
+    words = [
+        token.lemma_ if not re.match(r"[\U00010000-\U0010ffff]", token.text) else token.text
+        for token in doc
+    ]
+
+    # Combine consecutive words to detect phrases
+    combined_words = [
+        " ".join(words[i : i + len(phrase.split(" "))])
+        for i in range(len(words))
+        for phrase in word_dict
+        if " " in phrase
+    ]
+    words.extend(combined_words)
+
+    # Count occurrences
+    for word in words:
+        if word in word_dict:
+            occurrences[word] = occurrences.get(word, 0) + 1
+
+    return occurrences
 
 
 def get_conversation_summary(conversation: str) -> str:
@@ -222,9 +265,9 @@ def process(history, num_people, we_dict):
     words_df = pd.DataFrame(index=date_index, columns=analysis_words, dtype=int)
     words_df = words_df.fillna(0)
     for message in messages:
-        for word in analysis_words:
-            count = message.content.count(word)
-            words_df.loc[message.date][word] += count
+        words_in_message = calculate_word_occurrences(message.content, analysis_words)
+        for word in words_in_message:
+            words_df.loc[message.date][word] += words_in_message[word]
 
     # now make index the first column
     words_df.insert(0, "Date", words_df.index)
