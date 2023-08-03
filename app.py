@@ -64,25 +64,29 @@ def calculate_word_occurrences(text: str, word_dict: List[str]) -> dict:
 
 
 def get_conversation_summary(conversation: str) -> str:
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo-16k",
-        messages=[
-            {
-                "role": "system",
-                "content": "Break the following Whatsapp chat history into separate conversations. For each conversation specify its topic, main participants, and provide short, concise summary of the conversation. "
-            },
-            {
-                "role": "user",
-                "content": conversation
-            }
-        ],
-        temperature=0.48,
-        max_tokens=2133,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0
-    )
-    return response.choices[0].message.content
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo-16k",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Break the following Whatsapp chat history into separate conversations. For each conversation specify its topic, main participants, and provide short, concise summary of the conversation. "
+                },
+                {
+                    "role": "user",
+                    "content": conversation
+                }
+            ],
+            temperature=0.48,
+            max_tokens=2133,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
+        )
+        return response.choices[0].message.content
+    except openai.error.OpenAIError as e:
+        return str(e)
+
 
 
 def get_dictionaries_titles() -> List[str]:
