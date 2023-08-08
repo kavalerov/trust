@@ -445,4 +445,7 @@ with gr.Blocks() as demo:
         gr.Label("Todo: how to use this tool")
 
 
-demo.launch(server_name="0.0.0.0", server_port=8080)
+username = os.environ.get("USERNAME")
+password = os.environ.get("PASSWORD")
+
+demo.launch(server_name="0.0.0.0", server_port=8080, auth=(username, password))
