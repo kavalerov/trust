@@ -271,7 +271,10 @@ def process(history, num_people, we_dict):
     for message in messages:
         words_in_message = calculate_word_occurrences(message.content, analysis_words)
         for word in words_in_message:
-            words_df.loc[message.date][word] += words_in_message[word]
+            try:
+                words_df.loc[message.date][word] += words_in_message[word]
+            except Exception as e:
+                print(e)
 
     # now make index the first column
     words_df.insert(0, "Date", words_df.index)
